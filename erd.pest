@@ -1,0 +1,61 @@
+comment = _{ "#" ~ (!NEWLINE ~ ANY)* ~ NEWLINE }
+ws = _{ " " }
+empty = _{ ws* ~ NEWLINE }
+primary_key = { "*" }
+foreign_key = { "+" }
+// one, the other, or both (either order)
+key_specifiers = { foreign_key? ~ primary_key | primary_key? ~ foreign_key}
+// name should be refined to a tighter range (probably)
+word = _{ (!ws ~ ASCII_ALPHANUMERIC | "_")+ }
+quoted_name = { word ~ (ws ~ word)* }
+tick = _{"'"}
+btick = _{"`"}
+quote = _{"\""}
+identifier = {
+    (btick ~ !btick ~ quoted_name ~ btick)
+  | (tick ~ !tick ~ quoted_name ~ tick)
+  | (quote ~ !quote ~ quoted_name ~ quote)
+  | word
+}
+
+attribute = {key_specifiers? ~ identifier}
+field = { !(entity_header | cardinality) ~ (attribute ~ ws*) }
+field_list = {
+	((comment | empty)* ~ field)*
+}
+
+entity_header = { "[" ~ identifier ~ "]" }
+
+entity = {
+  	(entity_header ~ ws* ~ NEWLINE)
+  	~ field_list
+}
+
+one_exact = { "1" }
+one_or_none = { "?" }
+zero_or_more = { "*" }
+one_or_more = { "+" }
+
+card_type = {
+      one_or_none
+    | one_exact
+    | zero_or_more
+    | one_or_more
+}
+
+card_left = { identifier }
+card_right = { identifier }
+card_l_type = { card_type }
+card_r_type = { card_type }
+
+cardinality = {
+    card_left ~
+    	ws* ~
+        card_l_type ~ "--" ~ card_r_type
+        ~ ws*
+    ~ card_right
+}
+
+erd = {
+    ((comment | empty)* ~ (entity | cardinality))*
+}
