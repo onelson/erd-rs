@@ -1,30 +1,39 @@
 comment = _{ "#" ~ (!NEWLINE ~ ANY)* ~ NEWLINE }
-ws = _{ " " }
+space = _{ " " }
+tab = _ { "\t" }
+ws = _{ space | tab }
 empty = _{ ws* ~ NEWLINE }
+char = {ASCII_DIGIT | ASCII_ALPHA_LOWER | ASCII_ALPHA_UPPER | "_"}
 primary_key = { "*" }
 foreign_key = { "+" }
+
 // one, the other, or both (either order)
 key_specifiers = { foreign_key? ~ primary_key | primary_key? ~ foreign_key}
-// name should be refined to a tighter range (probably)
-word = _{ (!ws ~ ASCII_ALPHANUMERIC | "_")+ }
-quoted_name = { word ~ (ws ~ word)* }
+
+word = @{ char+ }
+
 tick = _{"'"}
 btick = _{"`"}
 quote = _{"\""}
-identifier = {
-    (btick ~ !btick ~ quoted_name ~ btick)
-  | (tick ~ !tick ~ quoted_name ~ tick)
-  | (quote ~ !quote ~ quoted_name ~ quote)
-  | word
+
+bare_name = { word }
+quoted_name = { word ~ ( ws+ ~ word)* }
+
+identifier = @{
+    btick ~ (!btick ~ quoted_name) ~ btick
+  | tick ~ (!tick ~ quoted_name) ~ tick
+  | quote ~ (!quote ~ quoted_name) ~ quote
+  | bare_name
 }
 
 attribute = {key_specifiers? ~ identifier}
-field = { !(entity_header | cardinality) ~ (attribute ~ ws*) }
+
+field = { !(entity_header | cardinality) ~ (ws* ~ attribute ~ ws*) ~ formatting? ~ ws* }
 field_list = {
 	((comment | empty)* ~ field)*
 }
 
-entity_header = { "[" ~ identifier ~ "]" }
+entity_header = { "[" ~ identifier ~ "]" ~ ws* ~ formatting? ~ ws* }
 
 entity = {
   	(entity_header ~ ws* ~ NEWLINE)
@@ -56,6 +65,40 @@ cardinality = {
     ~ card_right
 }
 
+formatting = { "{" ~ ws* ~(!"}" ~  format_rule_list? ) ~ NEWLINE? ~ ws* ~ "}" }
+
+label = { "label" }
+color = { "color" }
+size = { "size" }
+bgcolor = { "bgcolor" }
+font = { "font" }
+borderColor = { "border-color" }
+border = { "border" }
+
+format_key = {
+    label
+    | color
+    | size
+    | bgcolor
+    | font
+    | borderColor
+    | border
+}
+
+format_value = {
+ quote ~ (!quote ~ !NEWLINE ~ ANY)* ~ quote
+}
+
+format_rule = { format_key ~ ":" ~ ws* ~ format_value }
+
+format_rule_list = {
+    NEWLINE* ~ ws* ~
+    format_rule ~ ws* ~
+        ("," ~ ws* ~ NEWLINE* ~ ws* ~format_rule ~ ws* ~ NEWLINE*)*
+}
+
 erd = {
+    SOI ~
     ((comment | empty)* ~ (entity | cardinality))*
+    ~ EOI
 }
