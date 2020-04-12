@@ -1,14 +1,12 @@
-comment = _{ "#" ~ (!NEWLINE ~ ANY)* ~ NEWLINE }
-space = _{ " " }
-tab = _ { "\t" }
-ws = _{ space | tab }
-empty = _{ ws* ~ NEWLINE }
-char = {ASCII_DIGIT | ASCII_ALPHA_LOWER | ASCII_ALPHA_UPPER | "_"}
+WHITESPACE = _{ " " | "\t" }
+COMMENT = _{ "#" ~ (!NEWLINE ~ ANY)*  ~ NEWLINE? }
+
+char = { ASCII_DIGIT | ASCII_ALPHA_LOWER | ASCII_ALPHA_UPPER | "_" }
 primary_key = { "*" }
 foreign_key = { "+" }
 
 // one, the other, or both (either order)
-key_specifiers = { foreign_key? ~ primary_key | primary_key? ~ foreign_key}
+key_specifiers = { foreign_key? ~ primary_key | primary_key? ~ foreign_key }
 
 word = @{ char+ }
 
@@ -17,7 +15,7 @@ btick = _{"`"}
 quote = _{"\""}
 
 bare_name = { word }
-quoted_name = { word ~ ( ws+ ~ word)* }
+quoted_name = { word ~ (" " | word)* }
 
 identifier = @{
     btick ~ (!btick ~ quoted_name) ~ btick
@@ -28,17 +26,13 @@ identifier = @{
 
 attribute = {key_specifiers? ~ identifier}
 
-field = { !(entity_header | cardinality) ~ (ws* ~ attribute ~ ws*) ~ formatting? ~ ws* }
+field = { !(entity_header | cardinality) ~  attribute ~ formatting? }
 field_list = {
-	((comment | empty)* ~ field)*
+	(field | NEWLINE)*
 }
 
-entity_header = { "[" ~ identifier ~ "]" ~ ws* ~ formatting? ~ ws* }
-
-entity = {
-  	(entity_header ~ ws* ~ NEWLINE)
-  	~ field_list
-}
+entity_header = { "[" ~ identifier ~ "]" ~ formatting? ~ NEWLINE? }
+entity = { entity_header ~ field_list }
 
 one_exact = { "1" }
 one_or_none = { "?" }
@@ -59,13 +53,11 @@ card_r_type = { card_type }
 
 cardinality = {
     card_left ~
-    	ws* ~
         card_l_type ~ "--" ~ card_r_type
-        ~ ws*
     ~ card_right
 }
 
-formatting = { "{" ~ ws* ~(!"}" ~  format_rule_list? ) ~ NEWLINE? ~ ws* ~ "}" }
+formatting = { "{" ~ (!"}" ~  format_rule_list? ) ~ "}" }
 
 label = { "label" }
 color = { "color" }
@@ -85,20 +77,20 @@ format_key = {
     | border
 }
 
-format_value = {
- quote ~ (!quote ~ !NEWLINE ~ ANY)* ~ quote
+format_value = @{
+    quote ~ (!(quote | NEWLINE) ~ ANY)* ~ quote
 }
 
-format_rule = { format_key ~ ":" ~ ws* ~ format_value }
+format_rule = { format_key ~ ":" ~ format_value }
 
 format_rule_list = {
-    NEWLINE* ~ ws* ~
-    format_rule ~ ws* ~
-        ("," ~ ws* ~ NEWLINE* ~ ws* ~format_rule ~ ws* ~ NEWLINE*)*
+    NEWLINE* ~
+    format_rule ~
+        ("," ~ NEWLINE* ~ format_rule )* ~ ","? ~ NEWLINE*
 }
 
 erd = {
     SOI ~
-    ((comment | empty)* ~ (entity | cardinality))*
+    (COMMENT | NEWLINE | entity | cardinality)*
     ~ EOI
 }
