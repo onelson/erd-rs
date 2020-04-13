@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate pest_derive;
-use pest::Parser;
+pub use pest::Parser;
 
 #[derive(Parser)]
 #[grammar = "erd.pest"]
-struct ErdParser;
+pub struct ErdParser;
 
 #[cfg(test)]
 mod tests {
