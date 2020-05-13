@@ -12,9 +12,10 @@ primary_key = { "*" }
 foreign_key = { "+" }
 
 // one, the other, or both (either order)
+/// green
 key_specifiers = {
-    foreign_key? ~ primary_key
-    | primary_key? ~ foreign_key
+    (foreign_key ~ primary_key?)
+    | (primary_key ~ foreign_key?)
 }
 
 word = @{ char+ }
@@ -37,11 +38,14 @@ attribute = {key_specifiers? ~ identifier}
 
 field = { !(entity_header | cardinality) ~  attribute ~ formatting? }
 field_list = {
+    NEWLINE+ ~
 	(field | NEWLINE)*
 }
 
-entity_header = { "[" ~ identifier ~ "]" ~ formatting? ~ NEWLINE? }
-entity = { entity_header ~ field_list }
+/// yellow
+entity_header = { "[" ~ identifier ~ "]" ~ formatting? }
+/// blue
+entity = { entity_header ~ field_list? }
 
 one_exact = { "1" }
 one_or_none = { "?" }
@@ -55,17 +59,23 @@ card_type = {
     | one_or_more
 }
 
+/// yellow
 card_left = { identifier }
+/// blue
 card_right = { identifier }
 card_l_type = { card_type }
 card_r_type = { card_type }
 
+/// red
 cardinality = {
+    !entity ~
     card_left ~
         card_l_type ~ "--" ~ card_r_type
     ~ card_right
+    ~ formatting?
 }
 
+/// green
 formatting = { "{" ~ (!"}" ~  format_rule_list? ) ~ "}" }
 
 label = { "label" }
