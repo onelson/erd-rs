@@ -8,44 +8,47 @@ char = {
     | "_"
 }
 
-primary_key = { "*" }
-foreign_key = { "+" }
+ispk = { "*" }
+isfk = { "+" }
 
 // one, the other, or both (either order)
 /// green
-key_specifiers = {
-    (foreign_key ~ primary_key?)
-    | (primary_key ~ foreign_key?)
+keys = {
+    (isfk ~ ispk?)
+    | (ispk ~ isfk?)
 }
 
 word = @{ char+ }
 
-tick = _{"'"}
-btick = _{"`"}
-quote = _{"\""}
+tick = _{ "'" }
+btick = _{ "`" }
+quote = _{ "\"" }
 
-bare_name = { word }
-quoted_name = { word ~ (" " | word)* }
+ident_no_space = { word }
+ident_quoted = { word ~ ( WHITESPACE | word)* }
 
-identifier = @{
-    btick ~ (!btick ~ quoted_name) ~ btick
-  | tick ~ (!tick ~ quoted_name) ~ tick
-  | quote ~ (!quote ~ quoted_name) ~ quote
-  | bare_name
+ident = @{
+    btick ~ (!btick ~ ident_quoted) ~ btick
+  | tick ~ (!tick ~ ident_quoted) ~ tick
+  | quote ~ (!quote ~ ident_quoted) ~ quote
+  | ident_no_space
 }
 
-attribute = {key_specifiers? ~ identifier}
+attr = { !(entity_name | rel) ~  keys? ~ ident ~ options? }
+attribs = {
+	(attr | NEWLINE)*
+}
 
-field = { !(entity_header | cardinality) ~  attribute ~ formatting? }
-field_list = {
-    NEWLINE+ ~
-	(field | NEWLINE)*
+/// blue
+entity = {
+    entity_name ~ options?
+    ~ NEWLINE
+    ~ attribs?
 }
 
 /// yellow
-entity_header = { "[" ~ identifier ~ "]" ~ formatting? }
-/// blue
-entity = { entity_header ~ field_list? }
+entity_name = { "[" ~ ident ~ "]" }
+
 
 one_exact = { "1" }
 one_or_none = { "?" }
@@ -60,56 +63,56 @@ card_type = {
 }
 
 /// yellow
-card_left = { identifier }
+entity1 = { ident }
 /// blue
-card_right = { identifier }
-card_l_type = { card_type }
-card_r_type = { card_type }
+entity2 = { ident }
+card1 = { card_type }
+card2 = { card_type }
 
 /// red
-cardinality = {
+rel = {
     !entity ~
-    card_left ~
-        card_l_type ~ "--" ~ card_r_type
-    ~ card_right
-    ~ formatting?
+    entity1 ~
+        card1 ~ "--" ~ card2
+    ~ entity2
+    ~ options?
 }
 
 /// green
-formatting = { "{" ~ (!"}" ~  format_rule_list? ) ~ "}" }
+options = {
+    "{"
+    ~ !"}"
+    ~ (NEWLINE* ~ opt ~ ("," ~ NEWLINE* ~ opt )* ~ ","? ~ NEWLINE*)?
+    ~ "}"
+}
 
 label = { "label" }
 color = { "color" }
 size = { "size" }
 bgcolor = { "bgcolor" }
 font = { "font" }
-borderColor = { "border-color" }
+border_color = { "border-color" }
 border = { "border" }
 
-format_key = {
+opt_name = {
     label
     | color
     | size
     | bgcolor
     | font
-    | borderColor
+    | border_color
     | border
 }
 
-format_value = @{
+opt_value = @{
     quote ~ (!(quote | NEWLINE) ~ ANY)* ~ quote
 }
 
-format_rule = { format_key ~ ":" ~ format_value }
+opt = { opt_name ~ ":" ~ opt_value }
 
-format_rule_list = {
-    NEWLINE* ~
-    format_rule ~
-        ("," ~ NEWLINE* ~ format_rule )* ~ ","? ~ NEWLINE*
-}
 
-erd = {
+document = {
     SOI ~
-    (COMMENT | NEWLINE | entity | cardinality)*
+    (COMMENT | NEWLINE | entity | rel)*
     ~ EOI
 }
