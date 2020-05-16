@@ -15,6 +15,23 @@ pub fn parse_pairs<'a>(input: &'a str) -> Result<Pairs<Rule>, Box<dyn std::error
 
 #[cfg(test)]
 mod tests {
+    //! The tests here aim to "prove the spec" described in the readme for the
+    //! original erd (haskell) project.
+    //!
+    //! <https://github.com/BurntSushi/erd/blob/c5c6e1e7971a53c513aa27edd902cfd6492a57cf/README.md#the-er-file-format>
+    //!
+    //! - directives should not come after entities/relationships
+    //!   on the *same line* but can contain newlines.
+    //! - options must not end on the same line as other things start.
+    //! - leading whitespace doesn't matter anywhere.
+    //! - options can appear next to all of:
+    //!   - directives
+    //!   - relationships
+    //!   - entity headers
+    //!   - attributes
+    //! - option values must use double quotes.
+    //! - options should start *on the same line* as the thing they are options for.
+
     use super::{ErdParser, Parser, Rule};
 
     #[test]
