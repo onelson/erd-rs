@@ -9,7 +9,7 @@ fn main() {
     let fp = std::env::args().nth(1).unwrap();
     let mut erd_file = File::open(&fp).unwrap();
     let mut buf = String::new();
-    erd_file.read_to_string(&mut buf);
+    erd_file.read_to_string(&mut buf).unwrap();
     let mut root_pairs = ErdParser::parse(Rule::document, &buf).unwrap();
 
     for pair in root_pairs.next().unwrap().into_inner() {
