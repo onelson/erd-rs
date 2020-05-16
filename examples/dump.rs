@@ -10,7 +10,7 @@ fn main() {
     let mut erd_file = File::open(&fp).unwrap();
     let mut buf = String::new();
     erd_file.read_to_string(&mut buf);
-    let mut root_pairs = ErdParser::parse(Rule::erd, &buf).unwrap();
+    let mut root_pairs = ErdParser::parse(Rule::document, &buf).unwrap();
 
     for pair in root_pairs.next().unwrap().into_inner() {
         println!("Rule: {:?}", pair.as_rule());

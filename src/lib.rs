@@ -20,7 +20,7 @@ mod tests {
             `birth date`
             +birth_place_id
         "#;
-        ErdParser::parse(Rule::erd, input).unwrap();
+        ErdParser::parse(Rule::document, input).unwrap();
     }
 
     #[test]
@@ -39,7 +39,7 @@ mod tests {
             'birth state'
             "birth country"
         "#;
-        ErdParser::parse(Rule::erd, input).unwrap();
+        ErdParser::parse(Rule::document, input).unwrap();
     }
     #[test]
     fn test_parse_double_entity_with_cardinality() {
@@ -63,6 +63,6 @@ mod tests {
         # 1 or more      +
         Person *--1 `Birth Place`
         "#;
-        ErdParser::parse(Rule::erd, input).unwrap();
+        ErdParser::parse(Rule::document, input).unwrap();
     }
 }
