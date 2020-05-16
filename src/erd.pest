@@ -111,8 +111,37 @@ opt_value = @{
 opt = { opt_name ~ ":" ~ opt_value }
 
 
-document = {
-    SOI ~
+dir_type_title = { "title" }
+dir_type_header = { "header" }
+dir_type_entity = { "entity" }
+dir_type_relationship = { "relationship" }
+
+/// red
+dir_type = {
+ dir_type_title
+ | dir_type_header
+ | dir_type_entity
+ | dir_type_relationship
+}
+
+directive = {
+    dir_type ~ options
+}
+
+// Header area of the document containing global formatting options (which will
+// be merged in with "local" formatting options defined later).
+head = {
+    (COMMENT | NEWLINE | directive)*
+}
+
+// Body contains the main ER data - entities and relationships.
+body = {
     (COMMENT | NEWLINE | entity | rel)*
+}
+
+document = {
+    SOI
+    ~ head
+    ~ body
     ~ EOI
 }
