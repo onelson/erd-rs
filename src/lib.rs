@@ -32,7 +32,7 @@ mod tests {
     //! - option values must use double quotes.
     //! - options should start *on the same line* as the thing they are options for.
 
-    use super::{ErdParser, Parser, Rule};
+    use super::parse_pairs;
 
     #[test]
     fn test_parse_single_entity() {
@@ -44,7 +44,7 @@ mod tests {
             `birth date`
             +birth_place_id
         "#;
-        ErdParser::parse(Rule::document, input).unwrap();
+        parse_pairs(input).unwrap();
     }
 
     #[test]
@@ -63,7 +63,7 @@ mod tests {
             'birth state'
             "birth country"
         "#;
-        ErdParser::parse(Rule::document, input).unwrap();
+        parse_pairs(input).unwrap();
     }
 
     #[test]
@@ -89,7 +89,7 @@ mod tests {
         # 1 or more      +
         Person *--1 `Birth Place`
         "#;
-        ErdParser::parse(Rule::document, input).unwrap();
+        parse_pairs(input).unwrap();
     }
 
     #[test]
@@ -106,6 +106,6 @@ mod tests {
           weight {
             label: "int",}
         "##;
-        ErdParser::parse(Rule::document, input).unwrap();
+        parse_pairs(input).unwrap();
     }
 }
