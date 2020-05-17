@@ -1,10 +1,17 @@
 #[macro_use]
 extern crate pest_derive;
-pub use pest::Parser;
+use pest::{iterators::Pairs, Parser};
 
 #[derive(Parser)]
 #[grammar = "erd.pest"]
-pub struct ErdParser;
+struct ErdParser;
+
+/// Parse an er file to get some pairs.
+// TODO: Likely this will not be something we offer in the public API, but it's
+//   useful to keep the `dump` example compiling for now.
+pub fn parse_pairs<'a>(input: &'a str) -> Result<Pairs<Rule>, Box<dyn std::error::Error>> {
+    Ok(ErdParser::parse(Rule::document, input)?)
+}
 
 #[cfg(test)]
 mod tests {
