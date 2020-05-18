@@ -1,5 +1,6 @@
-WHITESPACE = _{ " " | "\t" }
-COMMENT = _{ "#" ~ (!NEWLINE ~ ANY)*  ~ NEWLINE? }
+WHITESPACE = _{ WHITE_SPACE }
+COMMENT = _{ "#" ~ (!NEWLINE ~ ANY)* }
+space_no_new = _{ !NEWLINE ~ WHITE_SPACE }
 
 char = {
     ASCII_DIGIT
@@ -25,118 +26,118 @@ btick = _{ "`" }
 quote = _{ "\"" }
 
 ident_no_space = { word }
-ident_quoted = { word ~ ( WHITESPACE | word)* }
+ident_quoted = { word ~ (space_no_new | word)* }
 
-ident = @{
+/// yellow
+ident = !{
     btick ~ (!btick ~ ident_quoted) ~ btick
   | tick ~ (!tick ~ ident_quoted) ~ tick
   | quote ~ (!quote ~ ident_quoted) ~ quote
   | ident_no_space
 }
 
-attr = { !(entity_name | rel) ~  keys? ~ ident ~ options? }
+attr = @{ keys? ~ ident ~ space_no_new* ~ options? }
+
 attribs = {
-	(attr | NEWLINE)*
+    // bail if we see something that looks like a relationship
+    (!rel ~ attr)*
 }
 
-/// blue
+
+
+entity_name = @{ "[" ~ ident ~ "]" ~ space_no_new* ~ options? }
+
 entity = {
-    entity_name ~ options?
-    ~ NEWLINE
+    entity_name
     ~ attribs?
 }
 
-/// yellow
-entity_name = { "[" ~ ident ~ "]" }
-
-
-one_exact = { "1" }
-one_or_none = { "?" }
-zero_or_more = { "*" }
-one_or_more = { "+" }
-
 card_type = {
-      one_or_none
-    | one_exact
-    | zero_or_more
-    | one_or_more
+    "1"
+    | "?"
+    | "*"
+    | "+"
 }
 
-/// yellow
-entity1 = { ident }
 /// blue
-entity2 = { ident }
-card1 = { card_type }
-card2 = { card_type }
-
+entity1 = !{ ident }
+/// blue
+entity2 = !{ ident }
+/// yellow
+card1 = !{ card_type }
 /// red
-rel = {
-    !entity ~
-    entity1 ~
-        card1 ~ "--" ~ card2
+card2 = !{ card_type }
+
+rel = @{
+    entity1
+    ~ space_no_new*
+        ~ card1 ~ "--" ~ card2
+    ~ space_no_new*
     ~ entity2
+    ~ space_no_new*
     ~ options?
 }
 
-/// green
-options = {
+opt_list = !{
+    option ~ space_no_new*
+    ~ (
+        ("," ~ opt_list)
+        | (","? ~ space_no_new* ~ COMMENT? ~ NEWLINE?)
+    )
+}
+
+options = @{
     "{"
-    ~ !"}"
-    ~ (NEWLINE* ~ opt ~ ("," ~ NEWLINE* ~ opt )* ~ ","? ~ NEWLINE*)?
-    ~ "}"
+    ~ WHITESPACE*
+    ~ opt_list?
+    ~ WHITESPACE*
+    ~ "}" ~ space_no_new* ~ COMMENT? ~ (EOI | NEWLINE)
 }
-
-label = { "label" }
-color = { "color" }
-size = { "size" }
-bgcolor = { "bgcolor" }
-font = { "font" }
-border_color = { "border-color" }
-border = { "border" }
-
-opt_name = {
-    label
-    | color
-    | size
-    | bgcolor
-    | font
-    | border_color
-    | border
-}
-
-opt_value = @{
-    quote ~ (!(quote | NEWLINE) ~ ANY)* ~ quote
-}
-
-opt = { opt_name ~ ":" ~ opt_value }
-
-
-dir_type_title = { "title" }
-dir_type_header = { "header" }
-dir_type_entity = { "entity" }
-dir_type_relationship = { "relationship" }
 
 /// red
-dir_type = {
- dir_type_title
- | dir_type_header
- | dir_type_entity
- | dir_type_relationship
+opt_name = !{
+    "label"
+    | "color"
+    | "size"
+    | "bgcolor"
+    | "font"
+    | "border-color"
+    | "border"
 }
 
-directive = {
-    dir_type ~ options
+/// green
+opt_value = !{
+    quoted_text
+}
+
+quoted_text = @{
+    quote ~ (!quote ~ ANY)* ~ quote
+}
+
+option = @{ opt_name ~ ":" ~ space_no_new* ~  opt_value }
+
+
+dir_type = !{
+ "title"
+ | "header"
+ | "entity"
+ | "relationship"
+}
+
+directive = @{
+    dir_type ~ space_no_new* ~ options
 }
 
 // Header area of the document containing global formatting options (which will
 // be merged in with "local" formatting options defined later).
+
 head = {
-    (COMMENT | NEWLINE | directive)*
+    directive*
 }
 
 // Body contains the main ER data - entities and relationships.
 body = {
-    (COMMENT | NEWLINE | entity | rel)*
+    (rel | entity)*
 }
 
 document = {

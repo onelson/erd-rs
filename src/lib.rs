@@ -211,6 +211,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_option_can_belong_to_directive() {
         let input = r#"
         title { label: "Main title" }
@@ -229,6 +230,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_option_can_belong_to_entity() {
         let input = r#"
         title { label: "Main title" }
@@ -247,6 +249,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_option_can_belong_to_attr() {
         let input = r#"
         title { label: "Main title" }
@@ -265,6 +268,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_option_can_belong_to_rel() {
         let input = r#"
         title { label: "Main title" }
