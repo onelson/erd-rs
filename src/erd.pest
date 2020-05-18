@@ -13,8 +13,8 @@ ispk = { "*" }
 isfk = { "+" }
 
 // one, the other, or both (either order)
-/// green
-keys = {
+/// blue
+keys = !{
     (isfk ~ ispk?)
     | (ispk ~ isfk?)
 }
@@ -28,7 +28,6 @@ quote = _{ "\"" }
 ident_no_space = { word }
 ident_quoted = { word ~ (space_no_new | word)* }
 
-/// yellow
 ident = !{
     btick ~ (!btick ~ ident_quoted) ~ btick
   | tick ~ (!tick ~ ident_quoted) ~ tick
