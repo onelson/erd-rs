@@ -50,18 +50,17 @@ pub struct Entity {
 }
 
 /// Used as a key in the [Options](type.Options.html) type.
-// FIXME: looks like there are several options that are valid that we haven't
-//  modeled in the grammar yet.
-//  https://github.com/BurntSushi/erd/blob/c5c6e1e7971a53c513aa27edd902cfd6492a57cf/src/Erd/ER.hs#L73-L86
 pub enum FormatOption {
-    Label,
-    Color,
-    Size,
     BgColor,
-    Font,
-    BorderColor,
+    Color,
+    FontFace,
+    FontSize,
     Border,
-    // ... more to be added
+    BorderColor,
+    CellSpacing,
+    CellBorder,
+    CellPadding,
+    TextAlignment,
 }
 
 pub struct Relation {
