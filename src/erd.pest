@@ -97,11 +97,15 @@ options = @{
 opt_name = !{
     "label"
     | "color"
-    | "size"
     | "bgcolor"
+    | "size"
     | "font"
-    | "border-color"
     | "border"
+    | "border-color"
+    | "cellspacing"
+    | "cellborder"
+    | "cellpadding"
+    | "text-alignment"
 }
 
 /// green
