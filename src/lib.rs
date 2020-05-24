@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate pest_derive;
 
+pub mod er;
 mod errors;
-pub mod models;
 pub mod parser;
 
 pub use errors::Error;

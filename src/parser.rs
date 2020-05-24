@@ -2,14 +2,14 @@ use crate::Result;
 use pest::{iterators::Pairs, Parser};
 
 #[derive(Parser)]
-#[grammar = "erd.pest"]
-struct ErdParser;
+#[grammar = "er.pest"]
+struct ErParser;
 
 /// Parse an er file to get some pairs.
 // TODO: Likely this will not be something we offer in the public API, but it's
 //   useful to keep the `dump` example compiling for now.
 pub fn parse_pairs(input: &str) -> Result<Pairs<Rule>> {
-    Ok(ErdParser::parse(Rule::document, input)?)
+    Ok(ErParser::parse(Rule::document, input)?)
 }
 
 #[cfg(test)]
