@@ -164,6 +164,25 @@ pub enum Opt {
     TextAlignment(Align),
 }
 
+impl Opt {
+    /// The html attr name for the option.
+    fn html_attr_name(&self) -> &str {
+        match self {
+            Opt::Label(_) => "label",
+            Opt::Color(_) => "color",
+            Opt::BgColor(_) => "bgcolor",
+            Opt::FontSize(_) => "size",
+            Opt::FontFace(_) => "font",
+            Opt::Border(_) => "border",
+            Opt::BorderColor(_) => "border-color",
+            Opt::CellSpacing(_) => "cellspacing",
+            Opt::CellBorder(_) => "cellborder",
+            Opt::CellPadding(_) => "cellpadding",
+            Opt::TextAlignment(_) => "text-alignment",
+        }
+    }
+}
+
 /// Given two sets of options, merge the second into first, where elements
 /// in the first take precedence.
 fn merge_opts(a: &Options, b: &Options) -> Options {
@@ -299,16 +318,18 @@ fn card_by_name(c: char) -> Option<Cardinality> {
 
 /// Hard-coded default options for all graph titles.
 fn default_title_opts() -> Options {
-    let defaults = vec![("size".to_string(), Opt::FontSize(30.0))]
+    let defaults = vec![Opt::FontSize(30.0)]
         .into_iter()
+        .map(|opt| (opt.html_attr_name().to_string(), opt))
         .collect();
     Options(defaults)
 }
 
 /// Hard-coded default options for all entity headers.
 fn default_header_opts() -> Options {
-    let defaults = vec![("size".to_string(), Opt::FontSize(16.0))]
+    let defaults = vec![Opt::FontSize(16.0)]
         .into_iter()
+        .map(|opt| (opt.html_attr_name().to_string(), opt))
         .collect();
     Options(defaults)
 }
@@ -316,13 +337,14 @@ fn default_header_opts() -> Options {
 /// Hard-coded default options for all entities.
 fn default_entity_opts() -> Options {
     let defaults = vec![
-        ("border".to_string(), Opt::Border(0)),
-        ("cellborder".to_string(), Opt::CellBorder(1)),
-        ("cellspacing".to_string(), Opt::CellSpacing(0)),
-        ("cellpadding".to_string(), Opt::CellPadding(4)),
-        ("font".to_string(), Opt::FontFace("Helvetica".to_string())),
+        Opt::Border(0),
+        Opt::CellBorder(1),
+        Opt::CellSpacing(0),
+        Opt::CellPadding(4),
+        Opt::FontFace("Helvetica".to_string()),
     ]
     .into_iter()
+    .map(|opt| (opt.html_attr_name().to_string(), opt))
     .collect();
     Options(defaults)
 }
@@ -334,11 +356,9 @@ fn default_rel_opts() -> Options {
 
 /// Hard-coded default options for all attributes.
 fn default_attr_opts() -> Options {
-    let defaults = vec![(
-        "text-alignment".to_string(),
-        Opt::TextAlignment("LEFT".to_string()),
-    )]
-    .into_iter()
-    .collect();
+    let defaults = vec![Opt::TextAlignment("LEFT".to_string())]
+        .into_iter()
+        .map(|opt| (opt.html_attr_name().to_string(), opt))
+        .collect();
     Options(defaults)
 }
