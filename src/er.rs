@@ -6,7 +6,7 @@
 //! do with the structure of the diagram (our final output will be a dot
 //! language representation of this).
 
-use crate::Result;
+use crate::{Error, Result};
 use std::cmp::Ordering;
 use std::collections::hash_map::{Entry, HashMap};
 use std::fmt::{Display, Formatter};
@@ -32,14 +32,14 @@ pub struct Entity {
 
 /// Default ordering for `Entity` (by name).
 impl Ord for Entity {
-    fn cmp(&self, _other: &Self) -> Ordering {
-        unimplemented!()
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.name.cmp(&other.name)
     }
 }
 /// Default ordering for `Entity` (by name).
 impl PartialOrd for Entity {
-    fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
-        unimplemented!()
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.name.cmp(&other.name))
     }
 }
 
@@ -54,14 +54,14 @@ pub struct Attribute {
 
 /// Default ordering for `Attribute` (by field name).
 impl Ord for Attribute {
-    fn cmp(&self, _other: &Self) -> Ordering {
-        unimplemented!()
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.field.cmp(&other.field)
     }
 }
 /// Default ordering for `Attribute` (by field name).
 impl PartialOrd for Attribute {
-    fn partial_cmp(&self, _other: &Self) -> Option<Ordering> {
-        unimplemented!()
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.field.cmp(&other.field))
     }
 }
 
@@ -101,19 +101,15 @@ pub enum Directive {
 //  would then become `HashMap<String, Opt>` (if still relevant).
 pub struct Options(HashMap<String, Opt>);
 
-impl Eq for Options {
-    fn assert_receiver_is_total_eq(&self) {
-        unimplemented!()
-    }
-}
-
 impl PartialEq for Options {
-    fn eq(&self, _other: &Self) -> bool {
-        unimplemented!()
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
     }
 }
 
-type OptEntry<'m> = Entry<'m, Opt, String>;
+impl Eq for Options {}
+
+type OptEntry<'m> = Entry<'m, String, Opt>;
 
 // The following type aliases are stubs matching the Haskell types (mostly).
 // In many cases, the types used to represent these formatting options are
@@ -153,8 +149,9 @@ type Word8 = u8;
 type Align = String;
 
 /// Used as a key in the [Options](type.Options.html) type.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Opt {
+    Label(Text),
     BgColor(Color),
     Color(Color),
     FontFace(Text),
@@ -167,28 +164,73 @@ pub enum Opt {
     TextAlignment(Align),
 }
 
+impl Opt {
+    /// The html attr name for the option.
+    fn html_attr_name(&self) -> &str {
+        match self {
+            Opt::Label(_) => "label",
+            Opt::Color(_) => "color",
+            Opt::BgColor(_) => "bgcolor",
+            Opt::FontSize(_) => "size",
+            Opt::FontFace(_) => "font",
+            Opt::Border(_) => "border",
+            Opt::BorderColor(_) => "border-color",
+            Opt::CellSpacing(_) => "cellspacing",
+            Opt::CellBorder(_) => "cellborder",
+            Opt::CellPadding(_) => "cellpadding",
+            Opt::TextAlignment(_) => "text-alignment",
+        }
+    }
+}
+
 /// Given two sets of options, merge the second into first, where elements
 /// in the first take precedence.
-fn merge_opts(_: &Options, _: &Options) -> Options {
-    unimplemented!()
+fn merge_opts(a: &Options, b: &Options) -> Options {
+    Options(
+        b.0.iter()
+            .chain(a.0.iter())
+            .map(|(key, val)| (key.clone(), val.clone()))
+            .collect(),
+    )
 }
 
 /// Given a set of options and a selector function, return the list of
 /// only those options which matched. Examples of the selector function are
 /// `opt_to_font`, `opt_to_html` and `opt_to_label`.
-fn options_to<'a, F>(_selector: F, _options: &'a Options) -> Options
+fn options_to<F>(selector: F, options: &Options) -> Options
 where
-    F: Fn(&OptEntry<'a>) -> Option<&'a OptEntry<'a>>,
+    F: Fn(&Opt) -> Option<&Opt>,
 {
-    unimplemented!()
+    Options(
+        options
+            .0
+            .iter()
+            .filter_map(|(name, opt)| selector(opt).map(|opt| (name.clone(), opt.clone())))
+            .collect(),
+    )
 }
 
 /// Given an option name and a string representation of its value,
 /// `option_by_name` will attempt to parse the string as a value corresponding
 /// to the option. If the option doesn't exist or there was a problem parsing
 /// the value, an error is returned.
-fn option_by_name(_name: &str, _value: &str) -> Result<Opt> {
-    unimplemented!()
+fn option_by_name(name: &str, value: &str) -> Result<Opt> {
+    let value = value; // FIXME: trim quotes
+    let parsed = match name {
+        "label" => Opt::Label(value.to_string()),
+        "color" => Opt::Color(value.to_string()),
+        "bgcolor" => Opt::BgColor(value.to_string()),
+        "size" => Opt::FontSize(value.parse()?),
+        "font" => Opt::FontFace(value.to_string()),
+        "border" => Opt::Border(value.chars().next().unwrap() as u8), // FIXME: avoid panic
+        "border-color" => Opt::BorderColor(value.to_string()),
+        "cellspacing" => Opt::CellSpacing(value.chars().next().unwrap() as u8), // FIXME: avoid panic
+        "cellborder" => Opt::CellBorder(value.chars().next().unwrap() as u8), // FIXME: avoid panic
+        "cellpadding" => Opt::CellPadding(value.chars().next().unwrap() as u8), // FIXME: avoid panic
+        "text-alignment" => Opt::TextAlignment(value.to_string()),
+        _ => Err(Error::UnknownFormatOption(name.to_string()))?,
+    };
+    Ok(parsed)
 }
 
 /// A wrapper around the GraphViz's parser for any particular option.
@@ -202,19 +244,33 @@ fn option_parse() -> Result<()> {
 }
 
 /// Selects an option if and only if it corresponds to a font attribute.
-fn opt_to_font(_opt: &Opt) -> Option<&Opt> {
-    unimplemented!()
+fn opt_to_font(opt: &Opt) -> Option<&Opt> {
+    use self::Opt::{Color, FontFace, FontSize};
+    match opt {
+        Color(_) | FontFace(_) | FontSize(_) => Some(opt),
+        _ => None,
+    }
 }
 
 /// Selects an option if and only if it corresponds to an HTML attribute.
 /// In particular, for tables or table cells.
-fn opt_to_html(_opt: &Opt) -> Option<&Opt> {
-    unimplemented!()
+fn opt_to_html(opt: &Opt) -> Option<&Opt> {
+    use self::Opt::{
+        BgColor, Border, BorderColor, CellBorder, CellPadding, CellSpacing, TextAlignment,
+    };
+    match opt {
+        BgColor(_) | Border(_) | BorderColor(_) | CellBorder(_) | CellSpacing(_)
+        | CellPadding(_) | TextAlignment(_) => Some(opt),
+        _ => None,
+    }
 }
 
 /// Selects an option if and only if it corresponds to a label.
-fn opt_to_label(_opt: &Opt) -> Option<&Opt> {
-    unimplemented!()
+fn opt_to_label(opt: &Opt) -> Option<&Opt> {
+    match opt {
+        Opt::Label(_) => Some(opt),
+        _ => None,
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -237,36 +293,72 @@ pub enum Cardinality {
 }
 
 impl Display for Cardinality {
-    fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
-        unimplemented!()
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use Cardinality::*;
+        let val = match self {
+            ZeroOne => "{0,1}",
+            One => "1",
+            ZeroPlus => "0..N",
+            OnePlus => "1..N",
+        };
+        Ok(write!(f, "{}", val)?)
     }
 }
 
-fn card_by_name(_: char) -> Option<Cardinality> {
-    unimplemented!()
+fn card_by_name(c: char) -> Option<Cardinality> {
+    use Cardinality::*;
+    match c {
+        '?' => Some(ZeroOne),
+        '1' => Some(One),
+        '*' => Some(ZeroPlus),
+        '+' => Some(OnePlus),
+        _ => None,
+    }
 }
 
 /// Hard-coded default options for all graph titles.
 fn default_title_opts() -> Options {
-    unimplemented!()
+    let defaults = vec![Opt::FontSize(30.0)]
+        .into_iter()
+        .map(|opt| (opt.html_attr_name().to_string(), opt))
+        .collect();
+    Options(defaults)
 }
 
 /// Hard-coded default options for all entity headers.
 fn default_header_opts() -> Options {
-    unimplemented!()
+    let defaults = vec![Opt::FontSize(16.0)]
+        .into_iter()
+        .map(|opt| (opt.html_attr_name().to_string(), opt))
+        .collect();
+    Options(defaults)
 }
 
 /// Hard-coded default options for all entities.
 fn default_entity_opts() -> Options {
-    unimplemented!()
+    let defaults = vec![
+        Opt::Border(0),
+        Opt::CellBorder(1),
+        Opt::CellSpacing(0),
+        Opt::CellPadding(4),
+        Opt::FontFace("Helvetica".to_string()),
+    ]
+    .into_iter()
+    .map(|opt| (opt.html_attr_name().to_string(), opt))
+    .collect();
+    Options(defaults)
 }
 
 /// Hard-coded default options for all relationships.
 fn default_rel_opts() -> Options {
-    unimplemented!()
+    Options(Default::default())
 }
 
 /// Hard-coded default options for all attributes.
 fn default_attr_opts() -> Options {
-    unimplemented!()
+    let defaults = vec![Opt::TextAlignment("LEFT".to_string())]
+        .into_iter()
+        .map(|opt| (opt.html_attr_name().to_string(), opt))
+        .collect();
+    Options(defaults)
 }
