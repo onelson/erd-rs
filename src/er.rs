@@ -222,11 +222,11 @@ fn option_by_name(name: &str, value: &str) -> Result<Opt> {
         "bgcolor" => Opt::BgColor(value.to_string()),
         "size" => Opt::FontSize(value.parse()?),
         "font" => Opt::FontFace(value.to_string()),
-        "border" => Opt::Border(value.chars().next().unwrap() as u8), // FIXME: avoid panic
+        "border" => Opt::Border(value.parse()?),
         "border-color" => Opt::BorderColor(value.to_string()),
-        "cellspacing" => Opt::CellSpacing(value.chars().next().unwrap() as u8), // FIXME: avoid panic
-        "cellborder" => Opt::CellBorder(value.chars().next().unwrap() as u8), // FIXME: avoid panic
-        "cellpadding" => Opt::CellPadding(value.chars().next().unwrap() as u8), // FIXME: avoid panic
+        "cellspacing" => Opt::CellSpacing(value.parse()?),
+        "cellborder" => Opt::CellBorder(value.parse()?),
+        "cellpadding" => Opt::CellPadding(value.parse()?),
         "text-alignment" => Opt::TextAlignment(value.to_string()),
         _ => Err(Error::UnknownFormatOption(name.to_string()))?,
     };
