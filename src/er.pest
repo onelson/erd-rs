@@ -25,8 +25,8 @@ tick = _{ "'" }
 btick = _{ "`" }
 quote = _{ "\"" }
 
-ident_no_space = { word }
-ident_quoted = { word ~ (space_no_new | word)* }
+ident_no_space = @{ word }
+ident_quoted = @{ word ~ (space_no_new | word)* }
 
 ident = !{
     btick ~ (!btick ~ ident_quoted) ~ btick

@@ -23,7 +23,7 @@ pub fn parse(input: &str) -> Result<crate::er::ER> {
     for token in parse_pairs(input)?.next().unwrap().into_inner() {
         match token.as_rule() {
             Rule::head => build_head(token, &mut er)?,
-            Rule::body => parse_body(token, &mut er)?,
+            Rule::body => build_body(token, &mut er)?,
             Rule::EOI => (),
             _ => (),
         }
@@ -33,7 +33,9 @@ pub fn parse(input: &str) -> Result<crate::er::ER> {
 }
 
 fn build_head(token: Pair<Rule>, er: &mut crate::er::ER) -> Result<()> {
+    debug_assert_eq!(Rule::head, token.as_rule());
     for directive in token.into_inner() {
+        debug_assert_eq!(Rule::directive, directive.as_rule());
         let mut inner = directive.into_inner();
         let name = inner.next().unwrap().as_str();
         if let Some(opt_list) = inner.next() {
@@ -50,11 +52,151 @@ fn build_head(token: Pair<Rule>, er: &mut crate::er::ER) -> Result<()> {
     Ok(())
 }
 
+fn build_body(token: Pair<Rule>, er: &mut crate::er::ER) -> Result<()> {
+    debug_assert_eq!(Rule::body, token.as_rule());
+    for item in token.into_inner() {
+        match item.as_rule() {
+            Rule::entity => er.entities.push(build_entity(item)?),
+            Rule::rel => er.rels.push(build_relationship(item)?),
+            _ => unreachable!(),
+        }
+    }
+
+    Ok(())
+}
+
+fn build_entity(token: Pair<Rule>) -> Result<crate::er::Entity> {
+    debug_assert_eq!(Rule::entity, token.as_rule());
+
+    let mut inner = token.into_inner();
+    let entity_header = inner.next().unwrap();
+    debug_assert_eq!(Rule::entity_name, entity_header.as_rule());
+    let mut entity_header = entity_header.into_inner();
+    let name = entity_header
+        .next()
+        .unwrap() // ident rule
+        .into_inner()
+        .next() // ident quoted or no space (the actual name string)
+        .unwrap()
+        .as_str();
+
+    // The header for each entity can have options for the entire entity.
+    let eoptions = match entity_header.next() {
+        Some(item) => build_options(HashMap::new(), item)?,
+        None => crate::er::Options::default(),
+    };
+
+    let mut attribs = vec![];
+
+    if let Some(raw_attrs) = inner.next() {
+        for item in raw_attrs.into_inner() {
+            attribs.push(build_attribute(item)?);
+        }
+    }
+    Ok(crate::er::Entity {
+        name: name.to_string(),
+        attribs,
+        hoptions: crate::er::Options::default(), // FIXME header options should be brought in from globals
+        eoptions,
+    })
+}
+
+fn build_attribute(token: Pair<Rule>) -> Result<crate::er::Attribute> {
+    debug_assert_eq!(Rule::attr, token.as_rule());
+    let mut field = String::new();
+    let mut pk = false;
+    let mut fk = false;
+    let mut options: Option<_> = None;
+
+    for item in token.into_inner() {
+        match item.as_rule() {
+            Rule::ident => {
+                let name = item.into_inner().next().unwrap();
+                field.push_str(name.as_str());
+            }
+            Rule::opt_list => {
+                options = Some(build_options(HashMap::new(), item)?);
+            }
+            Rule::keys => {
+                for key in item.into_inner() {
+                    match key.as_rule() {
+                        Rule::ispk => pk = true,
+                        Rule::isfk => fk = true,
+                        _ => unreachable!(),
+                    }
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    Ok(crate::er::Attribute {
+        field,
+        pk,
+        fk,
+        options: options.unwrap_or_default(),
+    })
+}
+
+fn build_relationship(token: Pair<Rule>) -> Result<crate::er::Relation> {
+    debug_assert_eq!(Rule::rel, token.as_rule());
+    let mut entity1 = String::new();
+    let mut entity2 = String::new();
+    let mut card1: Option<crate::er::Cardinality> = None;
+    let mut card2: Option<crate::er::Cardinality> = None;
+    let mut options: Option<_> = None;
+
+    for item in token.into_inner() {
+        match item.as_rule() {
+            Rule::entity1 => {
+                entity1.push_str(
+                    item.into_inner()
+                        .next()
+                        .unwrap()
+                        .into_inner()
+                        .next()
+                        .unwrap()
+                        .as_str(),
+                );
+            }
+            Rule::card1 => {
+                card1 = crate::er::card_by_name(item.as_str().chars().next().unwrap());
+            }
+            Rule::entity2 => {
+                entity2.push_str(
+                    item.into_inner()
+                        .next()
+                        .unwrap()
+                        .into_inner()
+                        .next()
+                        .unwrap()
+                        .as_str(),
+                );
+            }
+            Rule::card2 => {
+                card2 = crate::er::card_by_name(item.as_str().chars().next().unwrap());
+            }
+            Rule::opt_list => {
+                options.replace(build_options(HashMap::new(), item)?);
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    Ok(crate::er::Relation {
+        entity1,
+        entity2,
+        card1: card1.unwrap(),
+        card2: card2.unwrap(),
+        options: Default::default(),
+    })
+}
+
 fn build_options(
     mut acc: HashMap<String, crate::er::Opt>,
     token: Pair<Rule>,
 ) -> Result<crate::er::Options> {
-    debug_assert_eq!(token.as_rule(), Rule::opt_list);
+    debug_assert_eq!(Rule::opt_list, token.as_rule());
     let mut inner = token.into_inner();
 
     // The `opt_list` rules are recursive with one key/value pair, and an
@@ -73,10 +215,6 @@ fn build_options(
         Some(tail) => build_options(acc, tail),
         None => Ok(crate::er::Options(acc)),
     }
-}
-
-fn parse_body(token: Pair<Rule>, er: &mut crate::er::ER) -> Result<()> {
-    Ok(())
 }
 
 #[cfg(test)]

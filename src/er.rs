@@ -293,7 +293,7 @@ impl Display for Cardinality {
     }
 }
 
-fn card_by_name(c: char) -> Option<Cardinality> {
+pub fn card_by_name(c: char) -> Option<Cardinality> {
     use Cardinality::*;
     match c {
         '?' => Some(ZeroOne),
