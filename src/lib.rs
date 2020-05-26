@@ -3,7 +3,7 @@ extern crate pest_derive;
 
 pub mod er;
 mod errors;
-pub mod parser;
+mod parser;
 
 pub use errors::Error;
 pub type Result<T> = std::result::Result<T, Error>;

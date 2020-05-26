@@ -8,7 +8,7 @@
 
 use crate::parser::{parse_pairs, Rule};
 use crate::{Error, Result};
-use pest::iterators::{Pair, Pairs};
+use pest::iterators::Pair;
 use std::cmp::Ordering;
 use std::collections::hash_map::HashMap;
 use std::fmt::{Display, Formatter};
