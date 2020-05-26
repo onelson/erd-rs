@@ -9,6 +9,6 @@ fn main() {
     let mut erd_file = File::open(&fp).unwrap();
     let mut buf = String::new();
     erd_file.read_to_string(&mut buf).unwrap();
-    let er = erd_rs::parser::parse(&buf).unwrap();
+    let er = erd_rs::er::parse(&buf).unwrap();
     println!("{:?}", er);
 }

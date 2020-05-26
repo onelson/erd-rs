@@ -6,7 +6,9 @@
 //! do with the structure of the diagram (our final output will be a dot
 //! language representation of this).
 
+use crate::parser::{parse_pairs, Rule};
 use crate::{Error, Result};
+use pest::iterators::{Pair, Pairs};
 use std::cmp::Ordering;
 use std::collections::hash_map::HashMap;
 use std::fmt::{Display, Formatter};
@@ -349,4 +351,203 @@ fn default_attr_opts() -> Options {
         .map(|opt| (opt.html_attr_name().to_string(), opt))
         .collect();
     Options(defaults)
+}
+
+// The code above is closely modeled on the original haskell code.
+// The code below is *new work* designed to bridge the fact we're parsing
+// tokens then packing them into rich types in two steps instead of one (like
+// in the original).
+
+/// Parse and build an `ER` from plain text.
+pub fn parse(input: &str) -> Result<ER> {
+    let mut er = ER::default();
+    for token in parse_pairs(input)?.next().unwrap().into_inner() {
+        match token.as_rule() {
+            Rule::head => build_head(token, &mut er)?,
+            Rule::body => build_body(token, &mut er)?,
+            Rule::EOI => (),
+            _ => (),
+        }
+    }
+
+    Ok(er)
+}
+
+fn build_head(token: Pair<Rule>, er: &mut ER) -> Result<()> {
+    debug_assert_eq!(Rule::head, token.as_rule());
+    for directive in token.into_inner() {
+        debug_assert_eq!(Rule::directive, directive.as_rule());
+        let mut inner = directive.into_inner();
+        let name = inner.next().unwrap().as_str();
+        if let Some(opt_list) = inner.next() {
+            let options = build_options(HashMap::new(), opt_list)?;
+            match name {
+                "title" => er.global_opts.title = options,
+                "header" => er.global_opts.header = options,
+                "entity" => er.global_opts.entity = options,
+                "relationship" => er.global_opts.relationship = options,
+                _ => unreachable!(),
+            }
+        }
+    }
+    Ok(())
+}
+
+fn build_body(token: Pair<Rule>, er: &mut ER) -> Result<()> {
+    debug_assert_eq!(Rule::body, token.as_rule());
+    for item in token.into_inner() {
+        match item.as_rule() {
+            Rule::entity => er.entities.push(build_entity(item)?),
+            Rule::rel => er.rels.push(build_relationship(item)?),
+            _ => unreachable!(),
+        }
+    }
+
+    Ok(())
+}
+
+fn build_entity(token: Pair<Rule>) -> Result<Entity> {
+    debug_assert_eq!(Rule::entity, token.as_rule());
+
+    let mut inner = token.into_inner();
+    let entity_header = inner.next().unwrap();
+    debug_assert_eq!(Rule::entity_name, entity_header.as_rule());
+    let mut entity_header = entity_header.into_inner();
+    let name = entity_header
+        .next()
+        .unwrap() // ident rule
+        .into_inner()
+        .next() // ident quoted or no space (the actual name string)
+        .unwrap()
+        .as_str();
+
+    // The header for each entity can have options for the entire entity.
+    let eoptions = match entity_header.next() {
+        Some(item) => build_options(HashMap::new(), item)?,
+        None => Options::default(),
+    };
+
+    let mut attribs = vec![];
+
+    if let Some(raw_attrs) = inner.next() {
+        for item in raw_attrs.into_inner() {
+            attribs.push(build_attribute(item)?);
+        }
+    }
+    Ok(Entity {
+        name: name.to_string(),
+        attribs,
+        hoptions: Options::default(), // FIXME header options should be brought in from globals
+        eoptions,
+    })
+}
+
+fn build_attribute(token: Pair<Rule>) -> Result<Attribute> {
+    debug_assert_eq!(Rule::attr, token.as_rule());
+    let mut field = String::new();
+    let mut pk = false;
+    let mut fk = false;
+    let mut options: Option<_> = None;
+
+    for item in token.into_inner() {
+        match item.as_rule() {
+            Rule::ident => {
+                let name = item.into_inner().next().unwrap();
+                field.push_str(name.as_str());
+            }
+            Rule::opt_list => {
+                options = Some(build_options(HashMap::new(), item)?);
+            }
+            Rule::keys => {
+                for key in item.into_inner() {
+                    match key.as_rule() {
+                        Rule::ispk => pk = true,
+                        Rule::isfk => fk = true,
+                        _ => unreachable!(),
+                    }
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    Ok(Attribute {
+        field,
+        pk,
+        fk,
+        options: options.unwrap_or_default(),
+    })
+}
+
+fn build_relationship(token: Pair<Rule>) -> Result<Relation> {
+    debug_assert_eq!(Rule::rel, token.as_rule());
+    let mut entity1 = String::new();
+    let mut entity2 = String::new();
+    let mut card1: Option<Cardinality> = None;
+    let mut card2: Option<Cardinality> = None;
+    let mut options: Option<_> = None;
+
+    for item in token.into_inner() {
+        match item.as_rule() {
+            Rule::entity1 => {
+                entity1.push_str(
+                    item.into_inner()
+                        .next()
+                        .unwrap()
+                        .into_inner()
+                        .next()
+                        .unwrap()
+                        .as_str(),
+                );
+            }
+            Rule::card1 => {
+                card1 = card_by_name(item.as_str().chars().next().unwrap());
+            }
+            Rule::entity2 => {
+                entity2.push_str(
+                    item.into_inner()
+                        .next()
+                        .unwrap()
+                        .into_inner()
+                        .next()
+                        .unwrap()
+                        .as_str(),
+                );
+            }
+            Rule::card2 => {
+                card2 = card_by_name(item.as_str().chars().next().unwrap());
+            }
+            Rule::opt_list => {
+                options.replace(build_options(HashMap::new(), item)?);
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    Ok(Relation {
+        entity1,
+        entity2,
+        card1: card1.unwrap(),
+        card2: card2.unwrap(),
+        options: Default::default(),
+    })
+}
+
+fn build_options(mut acc: HashMap<String, Opt>, token: Pair<Rule>) -> Result<Options> {
+    debug_assert_eq!(Rule::opt_list, token.as_rule());
+    let mut inner = token.into_inner();
+
+    // The `opt_list` rules are recursive with one key/value pair, and an
+    // optional tail.
+    let mut head = inner.next().unwrap().into_inner();
+    let maybe_tail = inner.next();
+
+    let opt_name = head.next().unwrap().as_str();
+    let opt_val = head.next().unwrap().as_str();
+    acc.insert(opt_name.to_string(), option_by_name(opt_name, opt_val)?);
+
+    match maybe_tail {
+        Some(tail) => build_options(acc, tail),
+        None => Ok(Options(acc)),
+    }
 }
