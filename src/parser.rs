@@ -1,5 +1,9 @@
 use crate::Result;
-use pest::{iterators::Pairs, Parser};
+use pest::{
+    iterators::{Pair, Pairs},
+    Parser,
+};
+use std::collections::HashMap;
 
 #[derive(Parser)]
 #[grammar = "er.pest"]
@@ -10,6 +14,69 @@ struct ErParser;
 //   useful to keep the `dump` example compiling for now.
 pub fn parse_pairs(input: &str) -> Result<Pairs<Rule>> {
     Ok(ErParser::parse(Rule::document, input)?)
+}
+
+/// Parse and build an `ER` from plain text.
+pub fn parse(input: &str) -> Result<crate::er::ER> {
+    use crate::er::*;
+    let mut er = ER::default();
+    for token in parse_pairs(input)?.next().unwrap().into_inner() {
+        match token.as_rule() {
+            Rule::head => build_head(token, &mut er)?,
+            Rule::body => parse_body(token, &mut er)?,
+            Rule::EOI => (),
+            _ => (),
+        }
+    }
+
+    Ok(er)
+}
+
+fn build_head(token: Pair<Rule>, er: &mut crate::er::ER) -> Result<()> {
+    for directive in token.into_inner() {
+        let mut inner = directive.into_inner();
+        let name = inner.next().unwrap().as_str();
+        if let Some(opt_list) = inner.next() {
+            let options = build_options(HashMap::new(), opt_list)?;
+            match name {
+                "title" => er.global_opts.title = options,
+                "header" => er.global_opts.header = options,
+                "entity" => er.global_opts.entity = options,
+                "relationship" => er.global_opts.relationship = options,
+                _ => unreachable!(),
+            }
+        }
+    }
+    Ok(())
+}
+
+fn build_options(
+    mut acc: HashMap<String, crate::er::Opt>,
+    token: Pair<Rule>,
+) -> Result<crate::er::Options> {
+    debug_assert_eq!(token.as_rule(), Rule::opt_list);
+    let mut inner = token.into_inner();
+
+    // The `opt_list` rules are recursive with one key/value pair, and an
+    // optional tail.
+    let mut head = inner.next().unwrap().into_inner();
+    let maybe_tail = inner.next();
+
+    let opt_name = head.next().unwrap().as_str();
+    let opt_val = head.next().unwrap().as_str();
+    acc.insert(
+        opt_name.to_string(),
+        crate::er::option_by_name(opt_name, opt_val)?,
+    );
+
+    match maybe_tail {
+        Some(tail) => build_options(acc, tail),
+        None => Ok(crate::er::Options(acc)),
+    }
+}
+
+fn parse_body(token: Pair<Rule>, er: &mut crate::er::ER) -> Result<()> {
+    Ok(())
 }
 
 #[cfg(test)]
