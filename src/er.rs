@@ -8,26 +8,27 @@
 
 use crate::{Error, Result};
 use std::cmp::Ordering;
-use std::collections::hash_map::{Entry, HashMap};
+use std::collections::hash_map::HashMap;
 use std::fmt::{Display, Formatter};
 
 /// Represents a single schema.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct ER {
-    entities: Vec<Entity>,
-    rels: Vec<Relation>,
-    title: Options,
+    pub global_opts: GlobalOptions,
+    pub entities: Vec<Entity>,
+    pub rels: Vec<Relation>,
+    pub title: Options,
 }
 
 /// Represents a single entity in a schema.
 #[derive(Debug, Eq, PartialEq)]
 pub struct Entity {
-    name: String,
-    attribs: Vec<Attribute>,
+    pub name: String,
+    pub attribs: Vec<Attribute>,
     /// Formatting options for the header.
-    hoptions: Options,
+    pub hoptions: Options,
     /// Formatting options for the entity "body."
-    eoptions: Options,
+    pub eoptions: Options,
 }
 
 /// Default ordering for `Entity` (by name).
@@ -46,10 +47,10 @@ impl PartialOrd for Entity {
 /// Represents an attribute on a particular entity.
 #[derive(Debug, Eq, PartialEq)]
 pub struct Attribute {
-    field: String,
-    pk: bool,
-    fk: bool,
-    options: Options,
+    pub field: String,
+    pub pk: bool,
+    pub fk: bool,
+    pub options: Options,
 }
 
 /// Default ordering for `Attribute` (by field name).
@@ -72,34 +73,17 @@ impl PartialOrd for Attribute {
 /// header section of the er file.
 /// The options will provide a fallback for each when rendering the various
 /// object types in the graph.
+#[derive(Debug, Default, PartialEq)]
 pub struct GlobalOptions {
-    title: Options,
-    header: Options,
-    entity: Options,
-    relationship: Options,
-}
-
-/// Used as a key for the [GlobalOptions](type.GlobalOptions.html) type.
-#[derive(Debug, PartialEq)]
-pub enum Directive {
-    Title,
-    Header,
-    Entity,
-    Relationship,
+    pub title: Options,
+    pub header: Options,
+    pub entity: Options,
+    pub relationship: Options,
 }
 
 /// A collection of formatting options.
-#[derive(Debug)]
-// FIXME:
-//  Seems like the `Options`/`Opt` type might be all wrong.
-//  We need specific key names matched against specific value types.
-//  This sounds like a struct to me, but a struct would not give us the
-//  filter-ability needed to run selectors over without a common type for the
-//  values.
-//  Perhaps we need to change `Opt`s to carry a typed value in each
-//  variant. Each variant would correspond to a string name. The `Options` type
-//  would then become `HashMap<String, Opt>` (if still relevant).
-pub struct Options(HashMap<String, Opt>);
+#[derive(Debug, Default)]
+pub struct Options(pub HashMap<String, Opt>);
 
 impl PartialEq for Options {
     fn eq(&self, other: &Self) -> bool {
@@ -108,8 +92,6 @@ impl PartialEq for Options {
 }
 
 impl Eq for Options {}
-
-type OptEntry<'m> = Entry<'m, String, Opt>;
 
 // The following type aliases are stubs matching the Haskell types (mostly).
 // In many cases, the types used to represent these formatting options are
@@ -210,12 +192,18 @@ where
     )
 }
 
+/// Remove a double quote char from the first and last position in a string.
+fn trim_quotes(s: &str) -> &str {
+    let quote = '"';
+    s.trim_start_matches(quote).trim_end_matches(quote)
+}
+
 /// Given an option name and a string representation of its value,
 /// `option_by_name` will attempt to parse the string as a value corresponding
 /// to the option. If the option doesn't exist or there was a problem parsing
 /// the value, an error is returned.
-fn option_by_name(name: &str, value: &str) -> Result<Opt> {
-    let value = value; // FIXME: trim quotes
+pub fn option_by_name(name: &str, value: &str) -> Result<Opt> {
+    let value = trim_quotes(value);
     let parsed = match name {
         "label" => Opt::Label(value.to_string()),
         "color" => Opt::Color(value.to_string()),
@@ -275,11 +263,11 @@ fn opt_to_label(opt: &Opt) -> Option<&Opt> {
 
 #[derive(Debug, PartialEq)]
 pub struct Relation {
-    entity1: String,
-    entity2: String,
-    card1: Cardinality,
-    card2: Cardinality,
-    options: Options,
+    pub entity1: String,
+    pub entity2: String,
+    pub card1: Cardinality,
+    pub card2: Cardinality,
+    pub options: Options,
 }
 
 /// Defined at each side of a [Relation](struct.Relation.html) a cardinality
@@ -305,7 +293,7 @@ impl Display for Cardinality {
     }
 }
 
-fn card_by_name(c: char) -> Option<Cardinality> {
+pub fn card_by_name(c: char) -> Option<Cardinality> {
     use Cardinality::*;
     match c {
         '?' => Some(ZeroOne),
